@@ -129,14 +129,39 @@ app.delete("/api/items/:id", async (req, res) => {
 
 app.get("/api/inventory", async (req, res) => {
   try {
-    const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
+    const category =
+      typeof req.query.category === "string" ? req.query.category.trim() : "";
+    const assetId =
+      typeof req.query.assetId === "string" ? req.query.assetId.trim() : "";
+    const status =
+      typeof req.query.status === "string" ? req.query.status.trim() : "";
+    const location =
+      typeof req.query.location === "string" ? req.query.location.trim() : "";
+    const name = typeof req.query.name === "string" ? req.query.name.trim() : "";
+
+    const where = {
+      ...(category && { category }),
+      ...(assetId && { assetId: { contains: assetId } }),
+      ...(status && { status }),
+      ...(location && { location }),
+      ...(name && {
+        OR: [
+          { firstName: { contains: name } },
+          { lastName: { contains: name } },
+        ],
+      }),
+    };
+
     const items = await prisma.inventory.findMany({
-      where: category ? { category } : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       select: {
         id: true,
         assetId: true,
         type: true,
+        status: true,
         location: true,
+        lastName: true,
+        firstName: true,
       },
       orderBy: { assetId: "asc" },
     });
@@ -144,6 +169,49 @@ app.get("/api/inventory", async (req, res) => {
   } catch (error) {
     console.error("Failed to fetch inventory:", error);
     res.status(500).json({ error: "Failed to fetch inventory" });
+  }
+});
+
+app.post("/api/inventory", async (req, res) => {
+  try {
+    const category =
+      typeof req.body?.category === "string" ? req.body.category.trim() : "";
+    if (!category) {
+      return res.status(400).json({ error: "category is required" });
+    }
+
+    const assetId = `NEW-${Date.now()}`;
+    const item = await prisma.inventory.create({
+      data: {
+        assetId,
+        category,
+        status: "Available",
+      },
+    });
+    res.status(201).json(item);
+  } catch (error) {
+    console.error("Failed to create inventory item:", error);
+    if (error.code === "P2002") {
+      return res.status(409).json({ error: "Asset ID already exists" });
+    }
+    res.status(500).json({ error: "Failed to create inventory item" });
+  }
+});
+
+app.get("/api/locations", async (_req, res) => {
+  try {
+    const locations = await prisma.location.findMany({
+      select: {
+        id: true,
+        shortcode: true,
+        name: true,
+      },
+      orderBy: { shortcode: "asc" },
+    });
+    res.json(locations);
+  } catch (error) {
+    console.error("Failed to fetch locations:", error);
+    res.status(500).json({ error: "Failed to fetch locations" });
   }
 });
 

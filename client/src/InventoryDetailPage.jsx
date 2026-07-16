@@ -55,15 +55,46 @@ function ReadValue({ value }) {
   return <div className="record-value">{formatValue(value)}</div>;
 }
 
-export default function InventoryDetailPage({ id, listTitle = "Inventory", onBack }) {
+export default function InventoryDetailPage({
+  id,
+  category,
+  listTitle = "Inventory",
+  startInEditMode = false,
+  onBack,
+}) {
   const [item, setItem] = useState(null);
   const [form, setForm] = useState(null);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startInEditMode);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [locations, setLocations] = useState([]);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLocations() {
+      try {
+        const response = await fetch("/api/locations");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load locations");
+        }
+        if (!cancelled) {
+          setLocations(data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadLocations();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +102,7 @@ export default function InventoryDetailPage({ id, listTitle = "Inventory", onBac
     async function loadItem() {
       setLoading(true);
       setError(null);
-      setEditing(false);
+      setEditing(startInEditMode);
       try {
         const response = await fetch(`/api/inventory/${id}`);
         const data = await response.json();
@@ -97,7 +128,7 @@ export default function InventoryDetailPage({ id, listTitle = "Inventory", onBac
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, startInEditMode]);
 
   function updateField(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -171,6 +202,11 @@ export default function InventoryDetailPage({ id, listTitle = "Inventory", onBac
     } finally {
       setSaving(false);
     }
+  }
+
+  function openAssetSticker() {
+    const url = `${window.location.origin}${window.location.pathname}#/inventory/${category}/${id}/sticker`;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   async function deleteRecord() {
@@ -300,10 +336,17 @@ export default function InventoryDetailPage({ id, listTitle = "Inventory", onBac
               <div className="record-row record-row-2">
                 <Field label="Location">
                   {editing ? (
-                    <input
+                    <select
                       value={form.location}
                       onChange={(e) => updateField("location", e.target.value)}
-                    />
+                    >
+                      <option value="">Select location</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.shortcode}>
+                          {location.shortcode} — {location.name}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
                     <ReadValue value={item.location} />
                   )}
@@ -412,7 +455,15 @@ export default function InventoryDetailPage({ id, listTitle = "Inventory", onBac
                     {saving ? "Saving…" : "Check In"}
                   </button>
                   <button type="button" className="secondary" disabled={deleting}>
-                    Ticket
+                    Open Ticket
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={openAssetSticker}
+                    disabled={deleting}
+                  >
+                    Print Asset Sticker
                   </button>
                 </>
               )}

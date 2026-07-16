@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AdminPage from "./AdminPage.jsx";
+import AssetStickerPage from "./AssetStickerPage.jsx";
 import InventoryDetailPage from "./InventoryDetailPage.jsx";
 import ItInventoryPage from "./ItInventoryPage.jsx";
 
@@ -20,12 +21,22 @@ function getPageFromHash() {
 
   if (hash === "#/admin") return { name: "admin" };
 
-  const detailMatch = hash.match(/^#\/inventory\/(IT|PTI|FND)\/(\d+)$/);
+  const stickerMatch = hash.match(/^#\/inventory\/(IT|PTI|FND)\/(\d+)\/sticker$/);
+  if (stickerMatch) {
+    return {
+      name: "asset-sticker",
+      category: stickerMatch[1],
+      id: Number(stickerMatch[2]),
+    };
+  }
+
+  const detailMatch = hash.match(/^#\/inventory\/(IT|PTI|FND)\/(\d+)(\/edit)?$/);
   if (detailMatch) {
     return {
       name: "inventory-detail",
       category: detailMatch[1],
       id: Number(detailMatch[2]),
+      startInEditMode: Boolean(detailMatch[3]),
     };
   }
 
@@ -102,11 +113,17 @@ export default function App() {
     return <AdminPage onBack={goHome} />;
   }
 
+  if (page.name === "asset-sticker") {
+    return <AssetStickerPage id={page.id} category={page.category} />;
+  }
+
   if (page.name === "inventory-detail") {
     return (
       <InventoryDetailPage
         id={page.id}
+        category={page.category}
         listTitle={CATEGORY_TITLES[page.category] || "Inventory"}
+        startInEditMode={page.startInEditMode}
         onBack={() => {
           window.location.hash = `#/inventory/${page.category}`;
         }}
@@ -122,6 +139,9 @@ export default function App() {
         onBack={goHome}
         onEdit={(id) => {
           window.location.hash = `#/inventory/${page.category}/${id}`;
+        }}
+        onAdd={(id) => {
+          window.location.hash = `#/inventory/${page.category}/${id}/edit`;
         }}
       />
     );
