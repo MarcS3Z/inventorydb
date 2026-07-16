@@ -1,10 +1,56 @@
+import { useEffect, useState } from "react";
+import AdminPage from "./AdminPage.jsx";
+import InventoryDetailPage from "./InventoryDetailPage.jsx";
+import ItInventoryPage from "./ItInventoryPage.jsx";
+
 const inventoryLinks = [
-  "IT Inventory",
-  "PTI Facilities Inventory",
-  "Horizons Facilities Inventory",
+  { label: "IT Inventory", category: "IT" },
+  { label: "PTI Facilities Inventory", category: "PTI" },
+  { label: "Horizons Facilities Inventory", category: "FND" },
 ];
 
-export default function App() {
+const CATEGORY_TITLES = {
+  IT: "IT Inventory",
+  PTI: "PTI Facilities Inventory",
+  FND: "Horizons Facilities Inventory",
+};
+
+function getPageFromHash() {
+  const hash = window.location.hash;
+
+  if (hash === "#/admin") return { name: "admin" };
+
+  const detailMatch = hash.match(/^#\/inventory\/(IT|PTI|FND)\/(\d+)$/);
+  if (detailMatch) {
+    return {
+      name: "inventory-detail",
+      category: detailMatch[1],
+      id: Number(detailMatch[2]),
+    };
+  }
+
+  const listMatch = hash.match(/^#\/inventory\/(IT|PTI|FND)$/);
+  if (listMatch) {
+    return { name: "inventory-list", category: listMatch[1] };
+  }
+
+  // Legacy hashes
+  if (hash === "#/it-inventory") {
+    return { name: "inventory-list", category: "IT" };
+  }
+  const legacyDetail = hash.match(/^#\/it-inventory\/(\d+)$/);
+  if (legacyDetail) {
+    return {
+      name: "inventory-detail",
+      category: "IT",
+      id: Number(legacyDetail[1]),
+    };
+  }
+
+  return { name: "home" };
+}
+
+function HomePage() {
   return (
     <div className="app home">
       <header className="header">
@@ -12,12 +58,74 @@ export default function App() {
       </header>
 
       <nav className="home-nav" aria-label="Inventory sections">
-        {inventoryLinks.map((label) => (
-          <button key={label} type="button">
+        {inventoryLinks.map(({ label, category }) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => {
+              window.location.hash = `#/inventory/${category}`;
+            }}
+          >
             {label}
           </button>
         ))}
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            window.location.hash = "#/admin";
+          }}
+        >
+          Administration
+        </button>
       </nav>
     </div>
   );
+}
+
+export default function App() {
+  const [page, setPage] = useState(getPageFromHash);
+
+  useEffect(() => {
+    function onHashChange() {
+      setPage(getPageFromHash());
+    }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  function goHome() {
+    window.location.hash = "";
+  }
+
+  if (page.name === "admin") {
+    return <AdminPage onBack={goHome} />;
+  }
+
+  if (page.name === "inventory-detail") {
+    return (
+      <InventoryDetailPage
+        id={page.id}
+        listTitle={CATEGORY_TITLES[page.category] || "Inventory"}
+        onBack={() => {
+          window.location.hash = `#/inventory/${page.category}`;
+        }}
+      />
+    );
+  }
+
+  if (page.name === "inventory-list") {
+    return (
+      <ItInventoryPage
+        category={page.category}
+        title={CATEGORY_TITLES[page.category] || "Inventory"}
+        onBack={goHome}
+        onEdit={(id) => {
+          window.location.hash = `#/inventory/${page.category}/${id}`;
+        }}
+      />
+    );
+  }
+
+  return <HomePage />;
 }

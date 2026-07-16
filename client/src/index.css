@@ -106,12 +106,14 @@ label {
 
 input,
 textarea,
+select,
 button {
   font: inherit;
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -121,7 +123,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   outline: 2px solid color-mix(in srgb, var(--accent) 35%, white);
   border-color: var(--accent);
 }
@@ -184,6 +187,47 @@ button.danger:hover:not(:disabled) {
   border: 1px solid color-mix(in srgb, var(--danger) 25%, white);
 }
 
+.banner.success {
+  background: #e8f2ed;
+  color: #174739;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, white);
+}
+
+.banner.success p {
+  margin: 0;
+}
+
+.back-button {
+  margin-bottom: 1rem;
+}
+
+.import-help {
+  margin: 0 0 1rem;
+}
+
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.import-actions input[type="file"] {
+  max-width: 100%;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.selected-file {
+  margin: 0.75rem 0 0;
+}
+
+.import-errors {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+}
+
 .muted {
   color: var(--muted);
   margin: 0;
@@ -223,6 +267,108 @@ th {
   margin-top: 0.15rem;
 }
 
+.actions-col {
+  width: 3rem;
+  text-align: right;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--line);
+}
+
+.icon-button:hover:not(:disabled) {
+  background: #e8f2ed;
+  color: var(--accent-hover);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.record-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+}
+
+.record-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem 1.25rem;
+}
+
+.record-row-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.record-row-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.record-field,
+.issued-to-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: inherit;
+  color: inherit;
+}
+
+.record-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.record-value {
+  font-size: 1rem;
+  word-break: break-word;
+  min-height: 1.5rem;
+}
+
+.issued-to-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.record-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.delete-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.delete-confirm p {
+  margin: 0;
+  color: var(--danger);
+}
+
 code {
   font-size: 0.875rem;
   background: #f0ebe2;
@@ -232,6 +378,12 @@ code {
 
 @media (max-width: 640px) {
   .form {
+    grid-template-columns: 1fr;
+  }
+
+  .record-row-2,
+  .record-row-3,
+  .issued-to-fields {
     grid-template-columns: 1fr;
   }
 

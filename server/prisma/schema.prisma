@@ -17,3 +17,31 @@ model Item {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// Fields from IT Inventory-PTI.xlsx (PTI In Use / PT Available / PT Removed)
+model Inventory {
+  id           Int       @id @default(autoincrement())
+  assetId      String    @unique // spreadsheet "ID" (serial / asset tag)
+  category     String?
+  manufacturer String?
+  type         String?
+  issued       DateTime?
+  location     String?
+  lastName     String?
+  firstName    String?
+  notes        String?   @db.Text
+  status       String?
+  lastCheckIn  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("inventory")
+}
+
+model Location {
+  id        Int    @id @default(autoincrement())
+  shortcode String @unique
+  name      String
+
+  @@map("locations")
+}
