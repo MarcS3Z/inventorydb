@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import {
   AuthenticatedTemplate,
   UnauthenticatedTemplate,
@@ -41,8 +41,10 @@ function LoginScreen() {
 function AuthenticatedApp({ children }) {
   const { instance, accounts } = useMsal();
   const account = instance.getActiveAccount() || accounts[0] || null;
+  const [tokenReady, setTokenReady] = useState(false);
 
-  useEffect(() => {
+  // Register the provider before children mount/fetch so /api calls get a token.
+  useLayoutEffect(() => {
     setAccessTokenProvider(async () => {
       if (!account) return null;
       try {
@@ -56,10 +58,15 @@ function AuthenticatedApp({ children }) {
         return null;
       }
     });
+    setTokenReady(true);
 
-    return () => setAccessTokenProvider(async () => null);
+    return () => {
+      setTokenReady(false);
+      setAccessTokenProvider(async () => null);
+    };
   }, [account, instance]);
 
+  if (!tokenReady) return null;
   return children;
 }
 
