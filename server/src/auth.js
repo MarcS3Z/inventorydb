@@ -25,15 +25,25 @@ export function createRequireAuth() {
     };
   }
 
+  const jwksUri = `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`;
+
   // Entra may issue v1 (sts.windows.net) or v2 (login.microsoftonline.com/.../v2.0)
-  // access tokens depending on the app registration's accessTokenAcceptedVersion.
+  // access tokens depending on accessTokenAcceptedVersion. Use MCD multi-issuer mode —
+  // the single `issuer` option only accepts a string (an array never matches).
   return auth({
     audience,
-    issuer: [
-      `https://sts.windows.net/${tenantId}/`,
-      `https://login.microsoftonline.com/${tenantId}/v2.0`,
-    ],
-    jwksUri: `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`,
     tokenSigningAlg: "RS256",
+    mcd: {
+      issuers: [
+        {
+          issuer: `https://sts.windows.net/${tenantId}/`,
+          jwksUri,
+        },
+        {
+          issuer: `https://login.microsoftonline.com/${tenantId}/v2.0`,
+          jwksUri,
+        },
+      ],
+    },
   });
 }

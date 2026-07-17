@@ -433,7 +433,11 @@ app.post("/api/inventory/import", async (req, res) => {
 
 app.use((err, _req, res, next) => {
   if (err?.name === "UnauthorizedError" || err?.status === 401) {
-    return res.status(401).json({ error: "Unauthorized" });
+    console.warn("API auth rejected:", err.message || err.code || err);
+    return res.status(401).json({
+      error: "Unauthorized",
+      detail: err.message || err.code || null,
+    });
   }
   if (err?.status === 403) {
     return res.status(403).json({ error: "Forbidden" });

@@ -167,7 +167,11 @@ function HomePage() {
         const response = await apiFetch("/api/me");
         const data = await response.json();
         if (!response.ok) {
-          throw new Error(data.error || "Failed to load /api/me");
+          throw new Error(
+            data.detail
+              ? `${data.error || "Unauthorized"}: ${data.detail}`
+              : data.error || "Failed to load /api/me"
+          );
         }
         if (!cancelled) {
           setMe(data);
