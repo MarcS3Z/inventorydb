@@ -41,15 +41,14 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api", requireAuth);
 
 app.get("/api/me", (req, res) => {
+  const payload = req.auth?.payload ?? req.auth ?? {};
+  const roles = payload.roles ?? payload.role ?? [];
   res.json({
-    sub: req.auth?.payload?.sub ?? req.auth?.sub ?? null,
-    name: req.auth?.payload?.name ?? req.auth?.name ?? null,
+    sub: payload.sub ?? null,
+    name: payload.name ?? null,
     preferredUsername:
-      req.auth?.payload?.preferred_username ??
-      req.auth?.preferred_username ??
-      req.auth?.payload?.upn ??
-      req.auth?.upn ??
-      null,
+      payload.preferred_username ?? payload.upn ?? null,
+    roles: Array.isArray(roles) ? roles : roles ? [roles] : [],
     authDisabled: isAuthDisabled(),
   });
 });

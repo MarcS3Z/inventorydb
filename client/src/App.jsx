@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AdminPage from "./AdminPage.jsx";
+import { apiFetch } from "./api.js";
 import AssetStickerPage from "./AssetStickerPage.jsx";
 import { useAuthUser } from "./AuthGate.jsx";
 import { authEnabled } from "./authConfig.js";
@@ -143,6 +144,53 @@ function SignOutButton() {
 }
 
 function HomePage() {
+  const [me, setMe] = useState(null);
+  const [meError, setMeError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMe() {
+      if (authDisabled || !authEnabled) {
+        if (!cancelled) {
+          setMe({
+            name: null,
+            preferredUsername: null,
+            roles: [],
+            authDisabled: true,
+          });
+        }
+        return;
+      }
+
+      try {
+        const response = await apiFetch("/api/me");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load /api/me");
+        }
+        if (!cancelled) {
+          setMe(data);
+          setMeError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setMe(null);
+          setMeError(err.message || "Failed to load /api/me");
+        }
+      }
+    }
+
+    loadMe();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const displayName = me?.name || me?.preferredUsername || "(unknown)";
+  const roles =
+    me?.roles?.length > 0 ? me.roles.join(", ") : "(none in token)";
+
   return (
     <div className="app home">
       <header className="header">
@@ -172,6 +220,12 @@ function HomePage() {
         </button>
         {!authDisabled && authEnabled ? <SignOutButton /> : null}
       </nav>
+
+      <p className="muted" style={{ marginTop: "2rem", fontSize: "0.85rem" }}>
+        DEBUG — user: {meError ? `error (${meError})` : displayName}
+        {" · "}
+        roles: {meError ? "—" : me?.authDisabled ? "(auth disabled)" : roles}
+      </p>
     </div>
   );
 }
