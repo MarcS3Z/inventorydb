@@ -73,6 +73,7 @@ function ReadValue({ value }) {
 
 export default function InventoryDetailPage({
   id,
+  categoryId,
   category,
   isNew = false,
   listTitle = "Inventory",
@@ -195,7 +196,7 @@ export default function InventoryDetailPage({
         const response = await apiFetch("/api/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form, category }),
+          body: JSON.stringify({ ...form, categoryId, category }),
         });
         const data = await response.json();
         if (!response.ok) {
@@ -260,12 +261,12 @@ export default function InventoryDetailPage({
   }
 
   function openAssetSticker() {
-    const url = `${window.location.origin}${window.location.pathname}#/inventory/${encodeURIComponent(category)}/${id}/sticker`;
+    const url = `${window.location.origin}${window.location.pathname}#/inventory/${categoryId}/${id}/sticker`;
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function openTicket() {
-    const url = `${window.location.origin}${window.location.pathname}#/inventory/${encodeURIComponent(category)}/${id}/ticket`;
+    const url = `${window.location.origin}${window.location.pathname}#/inventory/${categoryId}/${id}/ticket`;
     window.open(url, "_blank", "noopener,noreferrer");
   }
 

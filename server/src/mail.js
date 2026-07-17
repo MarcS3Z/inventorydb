@@ -20,13 +20,22 @@ export async function verifySmtp() {
   await transporter.verify();
 }
 
-export async function sendMail({ to, subject, text, html, from } = {}) {
+export async function sendMail({ to, subject, text, html, from, replyTo } = {}) {
   if (!to || !subject) {
     throw new Error("to and subject are required");
   }
 
+  const smtpFrom = process.env.SMTP_FROM;
+
   return transporter.sendMail({
-    from: from || process.env.SMTP_FROM,
+    // Header From can be the signed-in user; SMTP auth stays SMTP_USER / SMTP_PASSWORD.
+    from: from || smtpFrom,
+    replyTo: replyTo || undefined,
+    // Keep envelope/return-path on the SES-verified automator identity when From differs.
+    envelope:
+      from && smtpFrom && from !== smtpFrom
+        ? { from: smtpFrom, to }
+        : undefined,
     to,
     subject,
     text,

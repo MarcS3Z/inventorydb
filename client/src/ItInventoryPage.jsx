@@ -79,7 +79,7 @@ function SortableHeader({ label, column, sort, onSort }) {
 }
 
 export default function ItInventoryPage({
-  category,
+  categoryId,
   title,
   onBack,
   onEdit,
@@ -124,7 +124,7 @@ export default function ItInventoryPage({
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({ category });
+        const params = new URLSearchParams({ categoryId: String(categoryId) });
         if (appliedFilters.assetId.trim()) {
           params.set("assetId", appliedFilters.assetId.trim());
         }
@@ -161,7 +161,7 @@ export default function ItInventoryPage({
     return () => {
       cancelled = true;
     };
-  }, [category, appliedFilters]);
+  }, [categoryId, appliedFilters]);
 
   const sortedItems = useMemo(() => {
     const next = [...items];

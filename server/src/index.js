@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
-import { verifySmtp } from "./mail.js";
+import { verifySmtp, sendMail } from "./mail.js";
 import { parseInventoryCsv } from "./csvImport.js";
 import { createRequireAuth, isAuthDisabled } from "./auth.js";
 
@@ -51,6 +51,48 @@ app.get("/api/me", (req, res) => {
     roles: Array.isArray(roles) ? roles : roles ? [roles] : [],
     authDisabled: isAuthDisabled(),
   });
+});
+
+app.get("/api/categories", async (_req, res) => {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        category: true,
+        ticketEmail: true,
+      },
+    });
+    res.json(categories);
+  } catch (error) {
+    console.error("Failed to fetch categories:", error);
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+});
+
+app.get("/api/categories/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid category id" });
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        category: true,
+        ticketEmail: true,
+      },
+    });
+    if (!category) {
+      return res.status(404).json({ error: "Category not found" });
+    }
+    res.json(category);
+  } catch (error) {
+    console.error("Failed to fetch category:", error);
+    res.status(500).json({ error: "Failed to fetch category" });
+  }
 });
 
 app.get("/api/items", async (_req, res) => {
@@ -147,6 +189,11 @@ app.delete("/api/items/:id", async (req, res) => {
 
 app.get("/api/inventory", async (req, res) => {
   try {
+    const categoryIdRaw =
+      typeof req.query.categoryId === "string"
+        ? req.query.categoryId.trim()
+        : "";
+    const categoryId = categoryIdRaw ? Number(categoryIdRaw) : null;
     const category =
       typeof req.query.category === "string" ? req.query.category.trim() : "";
     const assetId =
@@ -157,8 +204,22 @@ app.get("/api/inventory", async (req, res) => {
       typeof req.query.location === "string" ? req.query.location.trim() : "";
     const name = typeof req.query.name === "string" ? req.query.name.trim() : "";
 
+    let categoryFilter = category || undefined;
+    if (categoryId != null) {
+      if (!Number.isInteger(categoryId) || categoryId < 1) {
+        return res.status(400).json({ error: "Invalid categoryId" });
+      }
+      const categoryRow = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+      if (!categoryRow) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      categoryFilter = categoryRow.category;
+    }
+
     const where = {
-      ...(category && { category }),
+      ...(categoryFilter && { category: categoryFilter }),
       ...(assetId && { assetId: { contains: assetId } }),
       ...(status && { status }),
       ...(location && { location }),
@@ -194,6 +255,7 @@ app.post("/api/inventory", async (req, res) => {
   try {
     const {
       category,
+      categoryId: categoryIdRaw,
       assetId,
       manufacturer,
       type,
@@ -206,13 +268,32 @@ app.post("/api/inventory", async (req, res) => {
       notes,
     } = req.body ?? {};
 
-    const trimmedCategory =
+    const categoryId =
+      categoryIdRaw != null && categoryIdRaw !== ""
+        ? Number(categoryIdRaw)
+        : null;
+
+    let trimmedCategory =
       typeof category === "string" ? category.trim() : "";
+
+    if (categoryId != null) {
+      if (!Number.isInteger(categoryId) || categoryId < 1) {
+        return res.status(400).json({ error: "Invalid categoryId" });
+      }
+      const categoryRow = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+      if (!categoryRow) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      trimmedCategory = categoryRow.category;
+    }
+
     const trimmedAssetId =
       typeof assetId === "string" ? assetId.trim() : "";
 
     if (!trimmedCategory) {
-      return res.status(400).json({ error: "category is required" });
+      return res.status(400).json({ error: "category or categoryId is required" });
     }
     if (!trimmedAssetId) {
       return res.status(400).json({ error: "assetId is required" });
@@ -288,6 +369,71 @@ app.get("/api/inventory/:id", async (req, res) => {
   } catch (error) {
     console.error("Failed to fetch inventory item:", error);
     res.status(500).json({ error: "Failed to fetch inventory item" });
+  }
+});
+
+app.post("/api/inventory/:id/ticket", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid inventory id" });
+    }
+
+    const description =
+      typeof req.body?.description === "string"
+        ? req.body.description.trim()
+        : "";
+    if (!description) {
+      return res.status(400).json({ error: "Description is required" });
+    }
+
+    const item = await prisma.inventory.findUnique({ where: { id } });
+    if (!item) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+
+    const assetId = item.assetId || String(item.id);
+    const assetType = item.type || "Unknown";
+
+    const categoryRow = item.category
+      ? await prisma.category.findUnique({ where: { category: item.category } })
+      : null;
+    const to =
+      categoryRow?.ticketEmail ||
+      process.env.TICKET_EMAIL ||
+      "lhmpticomhelpdesk@lhmphysicaltherapy.freshservice.com";
+
+    if (!to) {
+      return res.status(500).json({
+        error: "No ticket email configured for this category",
+      });
+    }
+
+    const payload = req.auth?.payload ?? req.auth ?? {};
+    const userEmail =
+      payload.preferred_username ||
+      payload.upn ||
+      payload.unique_name ||
+      payload.email ||
+      null;
+    const userName = payload.name || null;
+    const fromAddress = userEmail
+      ? userName
+        ? `"${String(userName).replace(/"/g, "")}" <${userEmail}>`
+        : userEmail
+      : process.env.SMTP_FROM;
+
+    await sendMail({
+      to,
+      from: fromAddress,
+      subject: `ASSET ISSUE: ${assetId} - ${assetType}`,
+      text: description,
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Failed to submit asset ticket:", error);
+    res.status(500).json({ error: "Failed to submit ticket email" });
   }
 });
 

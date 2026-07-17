@@ -11,43 +11,27 @@ import OpenTicketPage from "./OpenTicketPage.jsx";
 const authDisabled =
   String(import.meta.env.VITE_AUTH_DISABLED || "").toLowerCase() === "true";
 
-const inventoryLinks = [
-  { label: "IT - PTI", category: "IT - PTI" },
-  { label: "IT - FND", category: "IT - FND" },
-  { label: "Facilities - PTI", category: "Facilities - PTI" },
-  { label: "Facilities - FND", category: "Facilities - FND" },
-];
-
-const CATEGORIES = inventoryLinks.map((link) => link.category);
-
-const CATEGORY_TITLES = Object.fromEntries(
-  inventoryLinks.map(({ category, label }) => [category, label])
-);
-
-function encodeCategory(category) {
-  return encodeURIComponent(category);
-}
-
 function parseInventoryHash(hash) {
   const match = hash.match(/^#\/inventory\/(.+)$/);
   if (!match) return null;
 
   const parts = match[1].split("/").map((part) => decodeURIComponent(part));
-  const category = CATEGORIES.find((value) => value === parts[0]);
-  if (!category) return null;
+  if (!/^\d+$/.test(parts[0])) return null;
+
+  const categoryId = Number(parts[0]);
 
   if (parts.length === 1) {
-    return { name: "inventory-list", category };
+    return { name: "inventory-list", categoryId };
   }
 
   if (parts.length === 2 && parts[1] === "new") {
-    return { name: "inventory-new", category };
+    return { name: "inventory-new", categoryId };
   }
 
   if (parts.length === 2 && /^\d+$/.test(parts[1])) {
     return {
       name: "inventory-detail",
-      category,
+      categoryId,
       id: Number(parts[1]),
       startInEditMode: false,
     };
@@ -56,7 +40,7 @@ function parseInventoryHash(hash) {
   if (parts.length === 3 && /^\d+$/.test(parts[1]) && parts[2] === "edit") {
     return {
       name: "inventory-detail",
-      category,
+      categoryId,
       id: Number(parts[1]),
       startInEditMode: true,
     };
@@ -65,7 +49,7 @@ function parseInventoryHash(hash) {
   if (parts.length === 3 && /^\d+$/.test(parts[1]) && parts[2] === "sticker") {
     return {
       name: "asset-sticker",
-      category,
+      categoryId,
       id: Number(parts[1]),
     };
   }
@@ -73,7 +57,7 @@ function parseInventoryHash(hash) {
   if (parts.length === 3 && /^\d+$/.test(parts[1]) && parts[2] === "ticket") {
     return {
       name: "open-ticket",
-      category,
+      categoryId,
       id: Number(parts[1]),
     };
   }
@@ -89,48 +73,6 @@ function getPageFromHash() {
   const inventoryPage = parseInventoryHash(hash);
   if (inventoryPage) return inventoryPage;
 
-  // Legacy hashes
-  if (hash === "#/it-inventory") {
-    return { name: "inventory-list", category: "IT - PTI" };
-  }
-  const legacyDetail = hash.match(/^#\/it-inventory\/(\d+)$/);
-  if (legacyDetail) {
-    return {
-      name: "inventory-detail",
-      category: "IT - PTI",
-      id: Number(legacyDetail[1]),
-    };
-  }
-
-  // Legacy category codes
-  const legacyCategoryMatch = hash.match(
-    /^#\/inventory\/(IT-FND|IT|PTI|FND)(?:\/(\d+)(?:\/(edit|sticker))?)?$/
-  );
-  if (legacyCategoryMatch) {
-    const legacyMap = {
-      IT: "IT - PTI",
-      "IT-FND": "IT - FND",
-      PTI: "Facilities - PTI",
-      FND: "Facilities - FND",
-    };
-    const category = legacyMap[legacyCategoryMatch[1]];
-    const id = legacyCategoryMatch[2]
-      ? Number(legacyCategoryMatch[2])
-      : undefined;
-    const suffix = legacyCategoryMatch[3];
-
-    if (!id) return { name: "inventory-list", category };
-    if (suffix === "sticker") {
-      return { name: "asset-sticker", category, id };
-    }
-    return {
-      name: "inventory-detail",
-      category,
-      id,
-      startInEditMode: suffix === "edit",
-    };
-  }
-
   return { name: "home" };
 }
 
@@ -144,11 +86,32 @@ function SignOutButton() {
 }
 
 function HomePage() {
+  const [categories, setCategories] = useState([]);
+  const [categoriesError, setCategoriesError] = useState(null);
   const [me, setMe] = useState(null);
   const [meError, setMeError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
+
+    async function loadCategories() {
+      try {
+        const response = await apiFetch("/api/categories");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load categories");
+        }
+        if (!cancelled) {
+          setCategories(data);
+          setCategoriesError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setCategories([]);
+          setCategoriesError(err.message || "Failed to load categories");
+        }
+      }
+    }
 
     async function loadMe() {
       if (authDisabled || !authEnabled) {
@@ -185,6 +148,7 @@ function HomePage() {
       }
     }
 
+    loadCategories();
     loadMe();
     return () => {
       cancelled = true;
@@ -201,16 +165,20 @@ function HomePage() {
         <h1>InventoryDB</h1>
       </header>
 
+      {categoriesError && (
+        <div className="banner error">{categoriesError}</div>
+      )}
+
       <nav className="home-nav" aria-label="Inventory sections">
-        {inventoryLinks.map(({ label, category }) => (
+        {categories.map((row) => (
           <button
-            key={category}
+            key={row.id}
             type="button"
             onClick={() => {
-              window.location.hash = `#/inventory/${encodeCategory(category)}`;
+              window.location.hash = `#/inventory/${row.id}`;
             }}
           >
-            {label}
+            {row.category}
           </button>
         ))}
         <button
@@ -234,6 +202,74 @@ function HomePage() {
   );
 }
 
+function useCategory(categoryId) {
+  const [category, setCategory] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await apiFetch(`/api/categories/${categoryId}`);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load category");
+        }
+        if (!cancelled) {
+          setCategory(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setCategory(null);
+          setError(err.message || "Failed to load category");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryId]);
+
+  return { category, error, loading };
+}
+
+function CategoryRoute({ categoryId, children }) {
+  const { category, error, loading } = useCategory(categoryId);
+
+  if (loading) {
+    return (
+      <div className="app">
+        <p className="muted">Loading category…</p>
+      </div>
+    );
+  }
+
+  if (error || !category) {
+    return (
+      <div className="app">
+        <div className="banner error">{error || "Category not found"}</div>
+        <button type="button" className="secondary" onClick={() => {
+          window.location.hash = "";
+        }}>
+          ← Home
+        </button>
+      </div>
+    );
+  }
+
+  return children(category);
+}
+
 export default function App() {
   const [page, setPage] = useState(getPageFromHash);
 
@@ -249,8 +285,8 @@ export default function App() {
     window.location.hash = "";
   }
 
-  function inventoryPath(category, ...parts) {
-    return `#/inventory/${[encodeCategory(category), ...parts].join("/")}`;
+  function inventoryPath(categoryId, ...parts) {
+    return `#/inventory/${[categoryId, ...parts].join("/")}`;
   }
 
   if (page.name === "admin") {
@@ -258,57 +294,89 @@ export default function App() {
   }
 
   if (page.name === "asset-sticker") {
-    return <AssetStickerPage id={page.id} category={page.category} />;
+    return (
+      <CategoryRoute categoryId={page.categoryId}>
+        {(category) => (
+          <AssetStickerPage
+            id={page.id}
+            categoryId={category.id}
+          />
+        )}
+      </CategoryRoute>
+    );
   }
 
   if (page.name === "open-ticket") {
-    return <OpenTicketPage id={page.id} category={page.category} />;
+    return (
+      <CategoryRoute categoryId={page.categoryId}>
+        {(category) => (
+          <OpenTicketPage
+            id={page.id}
+            categoryId={category.id}
+          />
+        )}
+      </CategoryRoute>
+    );
   }
 
   if (page.name === "inventory-new") {
     return (
-      <InventoryDetailPage
-        isNew
-        category={page.category}
-        listTitle={CATEGORY_TITLES[page.category] || "Inventory"}
-        startInEditMode
-        onBack={() => {
-          window.location.hash = inventoryPath(page.category);
-        }}
-        onCreated={(id) => {
-          window.location.hash = inventoryPath(page.category, id);
-        }}
-      />
+      <CategoryRoute categoryId={page.categoryId}>
+        {(category) => (
+          <InventoryDetailPage
+            isNew
+            categoryId={category.id}
+            category={category.category}
+            listTitle={category.category}
+            startInEditMode
+            onBack={() => {
+              window.location.hash = inventoryPath(category.id);
+            }}
+            onCreated={(id) => {
+              window.location.hash = inventoryPath(category.id, id);
+            }}
+          />
+        )}
+      </CategoryRoute>
     );
   }
 
   if (page.name === "inventory-detail") {
     return (
-      <InventoryDetailPage
-        id={page.id}
-        category={page.category}
-        listTitle={CATEGORY_TITLES[page.category] || "Inventory"}
-        startInEditMode={page.startInEditMode}
-        onBack={() => {
-          window.location.hash = inventoryPath(page.category);
-        }}
-      />
+      <CategoryRoute categoryId={page.categoryId}>
+        {(category) => (
+          <InventoryDetailPage
+            id={page.id}
+            categoryId={category.id}
+            category={category.category}
+            listTitle={category.category}
+            startInEditMode={page.startInEditMode}
+            onBack={() => {
+              window.location.hash = inventoryPath(category.id);
+            }}
+          />
+        )}
+      </CategoryRoute>
     );
   }
 
   if (page.name === "inventory-list") {
     return (
-      <ItInventoryPage
-        category={page.category}
-        title={CATEGORY_TITLES[page.category] || "Inventory"}
-        onBack={goHome}
-        onEdit={(id) => {
-          window.location.hash = inventoryPath(page.category, id);
-        }}
-        onAdd={() => {
-          window.location.hash = inventoryPath(page.category, "new");
-        }}
-      />
+      <CategoryRoute categoryId={page.categoryId}>
+        {(category) => (
+          <ItInventoryPage
+            categoryId={category.id}
+            title={category.category}
+            onBack={goHome}
+            onEdit={(id) => {
+              window.location.hash = inventoryPath(category.id, id);
+            }}
+            onAdd={() => {
+              window.location.hash = inventoryPath(category.id, "new");
+            }}
+          />
+        )}
+      </CategoryRoute>
     );
   }
 

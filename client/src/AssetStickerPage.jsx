@@ -2,15 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { apiFetch } from "./api.js";
 
-export default function AssetStickerPage({ id, category }) {
+export default function AssetStickerPage({ id, categoryId }) {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const assetUrl = useMemo(() => {
     const base = `${window.location.origin}${window.location.pathname}`;
-    return `${base}#/inventory/${encodeURIComponent(category)}/${id}`;
-  }, [category, id]);
+    return `${base}#/inventory/${categoryId}/${id}`;
+  }, [categoryId, id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +57,7 @@ export default function AssetStickerPage({ id, category }) {
             type="button"
             className="secondary"
             onClick={() => {
-              window.location.hash = `#/inventory/${encodeURIComponent(category)}/${id}`;
+              window.location.hash = `#/inventory/${categoryId}/${id}`;
             }}
           >
             Close

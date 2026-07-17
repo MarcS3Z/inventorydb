@@ -45,3 +45,11 @@ model Location {
 
   @@map("locations")
 }
+
+model Category {
+  id          Int    @id @default(autoincrement())
+  category    String @unique
+  ticketEmail String
+
+  @@map("categories")
+}

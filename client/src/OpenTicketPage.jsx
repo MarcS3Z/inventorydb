@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
 
-export default function OpenTicketPage({ id, category }) {
+export default function OpenTicketPage({ id, categoryId }) {
   const [item, setItem] = useState(null);
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,12 +42,39 @@ export default function OpenTicketPage({ id, category }) {
   }, [id]);
 
   function returnToAsset() {
-    window.location.hash = `#/inventory/${encodeURIComponent(category)}/${id}`;
+    window.location.hash = `#/inventory/${categoryId}/${id}`;
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    // Submit functionality will be added later.
+    const trimmed = description.trim();
+    if (!trimmed) {
+      setError("Please describe the issue before submitting.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      const response = await apiFetch(`/api/inventory/${id}/ticket`, {
+        method: "POST",
+        body: JSON.stringify({ description: trimmed }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to submit ticket");
+      }
+      setSuccess(true);
+      setDescription("");
+      setTimeout(() => {
+        returnToAsset();
+      }, 1200);
+    } catch (err) {
+      setError(err.message || "Failed to submit ticket");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -63,6 +92,9 @@ export default function OpenTicketPage({ id, category }) {
       </header>
 
       {error && <div className="banner error">{error}</div>}
+      {success && (
+        <div className="banner success">Ticket submitted. Returning to asset…</div>
+      )}
 
       <section className="panel">
         {loading ? (
@@ -90,16 +122,21 @@ export default function OpenTicketPage({ id, category }) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the issue…"
+                  required
+                  disabled={submitting || success}
                 />
               </label>
             </div>
 
             <div className="actions record-actions">
-              <button type="submit">Submit</button>
+              <button type="submit" disabled={submitting || success}>
+                {submitting ? "Submitting…" : "Submit"}
+              </button>
               <button
                 type="button"
                 className="secondary"
                 onClick={returnToAsset}
+                disabled={submitting}
               >
                 Cancel
               </button>
