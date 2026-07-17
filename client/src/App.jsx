@@ -3,58 +3,125 @@ import AdminPage from "./AdminPage.jsx";
 import AssetStickerPage from "./AssetStickerPage.jsx";
 import InventoryDetailPage from "./InventoryDetailPage.jsx";
 import ItInventoryPage from "./ItInventoryPage.jsx";
+import OpenTicketPage from "./OpenTicketPage.jsx";
 
 const inventoryLinks = [
-  { label: "IT Inventory", category: "IT" },
-  { label: "PTI Facilities Inventory", category: "PTI" },
-  { label: "Horizons Facilities Inventory", category: "FND" },
+  { label: "IT - PTI", category: "IT - PTI" },
+  { label: "IT - FND", category: "IT - FND" },
+  { label: "Facilities - PTI", category: "Facilities - PTI" },
+  { label: "Facilities - FND", category: "Facilities - FND" },
 ];
 
-const CATEGORY_TITLES = {
-  IT: "IT Inventory",
-  PTI: "PTI Facilities Inventory",
-  FND: "Horizons Facilities Inventory",
-};
+const CATEGORIES = inventoryLinks.map((link) => link.category);
+
+const CATEGORY_TITLES = Object.fromEntries(
+  inventoryLinks.map(({ category, label }) => [category, label])
+);
+
+function encodeCategory(category) {
+  return encodeURIComponent(category);
+}
+
+function parseInventoryHash(hash) {
+  const match = hash.match(/^#\/inventory\/(.+)$/);
+  if (!match) return null;
+
+  const parts = match[1].split("/").map((part) => decodeURIComponent(part));
+  const category = CATEGORIES.find((value) => value === parts[0]);
+  if (!category) return null;
+
+  if (parts.length === 1) {
+    return { name: "inventory-list", category };
+  }
+
+  if (parts.length === 2 && parts[1] === "new") {
+    return { name: "inventory-new", category };
+  }
+
+  if (parts.length === 2 && /^\d+$/.test(parts[1])) {
+    return {
+      name: "inventory-detail",
+      category,
+      id: Number(parts[1]),
+      startInEditMode: false,
+    };
+  }
+
+  if (parts.length === 3 && /^\d+$/.test(parts[1]) && parts[2] === "edit") {
+    return {
+      name: "inventory-detail",
+      category,
+      id: Number(parts[1]),
+      startInEditMode: true,
+    };
+  }
+
+  if (parts.length === 3 && /^\d+$/.test(parts[1]) && parts[2] === "sticker") {
+    return {
+      name: "asset-sticker",
+      category,
+      id: Number(parts[1]),
+    };
+  }
+
+  if (parts.length === 3 && /^\d+$/.test(parts[1]) && parts[2] === "ticket") {
+    return {
+      name: "open-ticket",
+      category,
+      id: Number(parts[1]),
+    };
+  }
+
+  return null;
+}
 
 function getPageFromHash() {
   const hash = window.location.hash;
 
   if (hash === "#/admin") return { name: "admin" };
 
-  const stickerMatch = hash.match(/^#\/inventory\/(IT|PTI|FND)\/(\d+)\/sticker$/);
-  if (stickerMatch) {
-    return {
-      name: "asset-sticker",
-      category: stickerMatch[1],
-      id: Number(stickerMatch[2]),
-    };
-  }
-
-  const detailMatch = hash.match(/^#\/inventory\/(IT|PTI|FND)\/(\d+)(\/edit)?$/);
-  if (detailMatch) {
-    return {
-      name: "inventory-detail",
-      category: detailMatch[1],
-      id: Number(detailMatch[2]),
-      startInEditMode: Boolean(detailMatch[3]),
-    };
-  }
-
-  const listMatch = hash.match(/^#\/inventory\/(IT|PTI|FND)$/);
-  if (listMatch) {
-    return { name: "inventory-list", category: listMatch[1] };
-  }
+  const inventoryPage = parseInventoryHash(hash);
+  if (inventoryPage) return inventoryPage;
 
   // Legacy hashes
   if (hash === "#/it-inventory") {
-    return { name: "inventory-list", category: "IT" };
+    return { name: "inventory-list", category: "IT - PTI" };
   }
   const legacyDetail = hash.match(/^#\/it-inventory\/(\d+)$/);
   if (legacyDetail) {
     return {
       name: "inventory-detail",
-      category: "IT",
+      category: "IT - PTI",
       id: Number(legacyDetail[1]),
+    };
+  }
+
+  // Legacy category codes
+  const legacyCategoryMatch = hash.match(
+    /^#\/inventory\/(IT-FND|IT|PTI|FND)(?:\/(\d+)(?:\/(edit|sticker))?)?$/
+  );
+  if (legacyCategoryMatch) {
+    const legacyMap = {
+      IT: "IT - PTI",
+      "IT-FND": "IT - FND",
+      PTI: "Facilities - PTI",
+      FND: "Facilities - FND",
+    };
+    const category = legacyMap[legacyCategoryMatch[1]];
+    const id = legacyCategoryMatch[2]
+      ? Number(legacyCategoryMatch[2])
+      : undefined;
+    const suffix = legacyCategoryMatch[3];
+
+    if (!id) return { name: "inventory-list", category };
+    if (suffix === "sticker") {
+      return { name: "asset-sticker", category, id };
+    }
+    return {
+      name: "inventory-detail",
+      category,
+      id,
+      startInEditMode: suffix === "edit",
     };
   }
 
@@ -74,7 +141,7 @@ function HomePage() {
             key={category}
             type="button"
             onClick={() => {
-              window.location.hash = `#/inventory/${category}`;
+              window.location.hash = `#/inventory/${encodeCategory(category)}`;
             }}
           >
             {label}
@@ -109,12 +176,37 @@ export default function App() {
     window.location.hash = "";
   }
 
+  function inventoryPath(category, ...parts) {
+    return `#/inventory/${[encodeCategory(category), ...parts].join("/")}`;
+  }
+
   if (page.name === "admin") {
     return <AdminPage onBack={goHome} />;
   }
 
   if (page.name === "asset-sticker") {
     return <AssetStickerPage id={page.id} category={page.category} />;
+  }
+
+  if (page.name === "open-ticket") {
+    return <OpenTicketPage id={page.id} category={page.category} />;
+  }
+
+  if (page.name === "inventory-new") {
+    return (
+      <InventoryDetailPage
+        isNew
+        category={page.category}
+        listTitle={CATEGORY_TITLES[page.category] || "Inventory"}
+        startInEditMode
+        onBack={() => {
+          window.location.hash = inventoryPath(page.category);
+        }}
+        onCreated={(id) => {
+          window.location.hash = inventoryPath(page.category, id);
+        }}
+      />
+    );
   }
 
   if (page.name === "inventory-detail") {
@@ -125,7 +217,7 @@ export default function App() {
         listTitle={CATEGORY_TITLES[page.category] || "Inventory"}
         startInEditMode={page.startInEditMode}
         onBack={() => {
-          window.location.hash = `#/inventory/${page.category}`;
+          window.location.hash = inventoryPath(page.category);
         }}
       />
     );
@@ -138,10 +230,10 @@ export default function App() {
         title={CATEGORY_TITLES[page.category] || "Inventory"}
         onBack={goHome}
         onEdit={(id) => {
-          window.location.hash = `#/inventory/${page.category}/${id}`;
+          window.location.hash = inventoryPath(page.category, id);
         }}
-        onAdd={(id) => {
-          window.location.hash = `#/inventory/${page.category}/${id}/edit`;
+        onAdd={() => {
+          window.location.hash = inventoryPath(page.category, "new");
         }}
       />
     );

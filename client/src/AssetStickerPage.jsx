@@ -8,7 +8,7 @@ export default function AssetStickerPage({ id, category }) {
 
   const assetUrl = useMemo(() => {
     const base = `${window.location.origin}${window.location.pathname}`;
-    return `${base}#/inventory/${category}/${id}`;
+    return `${base}#/inventory/${encodeURIComponent(category)}/${id}`;
   }, [category, id]);
 
   useEffect(() => {
@@ -55,7 +55,9 @@ export default function AssetStickerPage({ id, category }) {
           <button
             type="button"
             className="secondary"
-            onClick={() => window.close()}
+            onClick={() => {
+              window.location.hash = `#/inventory/${encodeURIComponent(category)}/${id}`;
+            }}
           >
             Close
           </button>
@@ -67,11 +69,20 @@ export default function AssetStickerPage({ id, category }) {
       {loading ? (
         <p className="muted">Loading sticker…</p>
       ) : item ? (
-        <section className="sticker-card panel">
-          <QRCodeSVG value={assetUrl} size={220} level="M" includeMargin />
+        <section className="sticker-card panel" aria-label="Asset sticker">
+          <div className="sticker-logo">
+            <img
+              src="/lhm-pti-logo.png"
+              alt="LHM Physical Therapy Institute"
+            />
+          </div>
           <div className="sticker-meta">
+            <div className="sticker-label">Asset ID</div>
             <div className="sticker-asset-id">{item.assetId}</div>
-            <div className="sticker-type">{item.type || "—"}</div>
+            {item.type ? <div className="sticker-type">{item.type}</div> : null}
+          </div>
+          <div className="sticker-qr">
+            <QRCodeSVG value={assetUrl} size={160} level="M" includeMargin />
           </div>
           <p className="muted sticker-url no-print">{assetUrl}</p>
         </section>

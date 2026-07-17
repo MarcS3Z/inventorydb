@@ -42,6 +42,21 @@ function itemToForm(item) {
   };
 }
 
+function emptyForm() {
+  return {
+    assetId: "",
+    manufacturer: "",
+    type: "",
+    status: "Available",
+    issued: "",
+    lastCheckIn: "",
+    location: "",
+    lastName: "",
+    firstName: "",
+    notes: "",
+  };
+}
+
 function Field({ label, children, className }) {
   return (
     <label className={`record-field ${className ?? ""}`.trim()}>
@@ -58,14 +73,16 @@ function ReadValue({ value }) {
 export default function InventoryDetailPage({
   id,
   category,
+  isNew = false,
   listTitle = "Inventory",
   startInEditMode = false,
   onBack,
+  onCreated,
 }) {
   const [item, setItem] = useState(null);
-  const [form, setForm] = useState(null);
-  const [editing, setEditing] = useState(startInEditMode);
-  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState(isNew ? emptyForm() : null);
+  const [editing, setEditing] = useState(isNew || startInEditMode);
+  const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -97,6 +114,15 @@ export default function InventoryDetailPage({
   }, []);
 
   useEffect(() => {
+    if (isNew) {
+      setItem(null);
+      setForm(emptyForm());
+      setEditing(true);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     let cancelled = false;
 
     async function loadItem() {
@@ -128,7 +154,7 @@ export default function InventoryDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [id, startInEditMode]);
+  }, [id, startInEditMode, isNew]);
 
   function updateField(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -142,6 +168,10 @@ export default function InventoryDetailPage({
   }
 
   function cancelEditing() {
+    if (isNew) {
+      onBack();
+      return;
+    }
     if (item) {
       setForm(itemToForm(item));
     }
@@ -152,9 +182,28 @@ export default function InventoryDetailPage({
   async function saveChanges() {
     if (!form) return;
 
+    if (!form.assetId.trim()) {
+      setError("Asset ID is required");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
+      if (isNew) {
+        const response = await fetch("/api/inventory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form, category }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to create inventory item");
+        }
+        onCreated?.(data.id);
+        return;
+      }
+
       const response = await fetch(`/api/inventory/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -168,7 +217,12 @@ export default function InventoryDetailPage({
       setForm(itemToForm(data));
       setEditing(false);
     } catch (err) {
-      setError(err.message || "Failed to update inventory item");
+      setError(
+        err.message ||
+          (isNew
+            ? "Failed to create inventory item"
+            : "Failed to update inventory item")
+      );
     } finally {
       setSaving(false);
     }
@@ -205,7 +259,12 @@ export default function InventoryDetailPage({
   }
 
   function openAssetSticker() {
-    const url = `${window.location.origin}${window.location.pathname}#/inventory/${category}/${id}/sticker`;
+    const url = `${window.location.origin}${window.location.pathname}#/inventory/${encodeURIComponent(category)}/${id}/sticker`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function openTicket() {
+    const url = `${window.location.origin}${window.location.pathname}#/inventory/${encodeURIComponent(category)}/${id}/ticket`;
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
@@ -236,11 +295,13 @@ export default function InventoryDetailPage({
         <button type="button" className="secondary back-button" onClick={onBack}>
           ← {listTitle}
         </button>
-        <h1>Inventory Record</h1>
+        <h1>{isNew ? "New Inventory Record" : "Inventory Record"}</h1>
         <p>
-          {item?.assetId
-            ? `Asset: ${item.assetId} - ${item.type || "—"}`
-            : "View full inventory details."}
+          {isNew
+            ? `Create a new asset in ${listTitle}.`
+            : item?.assetId
+              ? `Asset: ${item.assetId} - ${item.type || "—"}`
+              : "View full inventory details."}
         </p>
       </header>
 
@@ -249,7 +310,7 @@ export default function InventoryDetailPage({
       <section className="panel">
         {loading || !form ? (
           <p className="muted">Loading record…</p>
-        ) : item ? (
+        ) : item || isNew ? (
           <>
             <div className="record-layout">
               <div className="record-row">
@@ -454,7 +515,12 @@ export default function InventoryDetailPage({
                   >
                     {saving ? "Saving…" : "Check In"}
                   </button>
-                  <button type="button" className="secondary" disabled={deleting}>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={openTicket}
+                    disabled={deleting}
+                  >
                     Open Ticket
                   </button>
                   <button

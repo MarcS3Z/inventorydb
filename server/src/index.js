@@ -174,18 +174,58 @@ app.get("/api/inventory", async (req, res) => {
 
 app.post("/api/inventory", async (req, res) => {
   try {
-    const category =
-      typeof req.body?.category === "string" ? req.body.category.trim() : "";
-    if (!category) {
+    const {
+      category,
+      assetId,
+      manufacturer,
+      type,
+      status,
+      issued,
+      lastCheckIn,
+      location,
+      lastName,
+      firstName,
+      notes,
+    } = req.body ?? {};
+
+    const trimmedCategory =
+      typeof category === "string" ? category.trim() : "";
+    const trimmedAssetId =
+      typeof assetId === "string" ? assetId.trim() : "";
+
+    if (!trimmedCategory) {
       return res.status(400).json({ error: "category is required" });
     }
+    if (!trimmedAssetId) {
+      return res.status(400).json({ error: "assetId is required" });
+    }
 
-    const assetId = `NEW-${Date.now()}`;
+    const emptyToNull = (value) => {
+      if (value == null) return null;
+      const trimmed = String(value).trim();
+      return trimmed === "" ? null : trimmed;
+    };
+
+    const parseDate = (value) => {
+      const raw = emptyToNull(value);
+      if (!raw) return null;
+      const date = new Date(raw);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+
     const item = await prisma.inventory.create({
       data: {
-        assetId,
-        category,
-        status: "Available",
+        assetId: trimmedAssetId,
+        category: trimmedCategory,
+        manufacturer: emptyToNull(manufacturer),
+        type: emptyToNull(type),
+        status: emptyToNull(status) ?? "Available",
+        issued: parseDate(issued),
+        lastCheckIn: parseDate(lastCheckIn),
+        location: emptyToNull(location),
+        lastName: emptyToNull(lastName),
+        firstName: emptyToNull(firstName),
+        notes: emptyToNull(notes),
       },
     });
     res.status(201).json(item);

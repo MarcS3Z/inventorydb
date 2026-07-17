@@ -90,7 +90,6 @@ export default function ItInventoryPage({
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [sort, setSort] = useState({ key: "assetId", direction: "asc" });
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -200,24 +199,8 @@ export default function ItInventoryPage({
     });
   }
 
-  async function addRecord() {
-    setAdding(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/inventory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create inventory item");
-      }
-      onAdd(data.id);
-    } catch (err) {
-      setError(err.message || "Failed to create inventory item");
-      setAdding(false);
-    }
+  function addRecord() {
+    onAdd();
   }
 
   const hasActiveFilters = Boolean(
@@ -320,8 +303,8 @@ export default function ItInventoryPage({
         ) : (
           <>
             <div className="list-toolbar">
-              <button type="button" onClick={addRecord} disabled={adding}>
-                {adding ? "Adding…" : "Add New"}
+              <button type="button" onClick={addRecord}>
+                Add New
               </button>
             </div>
             {items.length === 0 ? (
