@@ -92,13 +92,13 @@ InventoryDB uses Microsoft tenant SSO (MSAL on the client, JWT validation on the
 2. **Authentication**: add a SPA redirect URI, e.g. `http://localhost:5173`.
 3. **Expose an API**: set Application ID URI to `api://<client-id>`, add scope `access_as_user`.
 4. **API permissions**: add the app’s own `access_as_user` scope and grant admin consent if required.
-5. Fill env vars:
+5. Fill env vars (server `AZURE_AUDIENCE` must match the access token `aud`, usually `api://<client-id>`). The API accepts both Entra v1 and v2 token issuers.
 
 | Variable | Where | Example |
 |----------|-------|---------|
 | `AZURE_TENANT_ID` | `server/.env` | Directory (tenant) ID |
 | `AZURE_CLIENT_ID` | `server/.env` | Application (client) ID |
-| `AZURE_AUDIENCE` | `server/.env` | `api://<client-id>` |
+| `AZURE_AUDIENCE` | `server/.env` | `api://<client-id>` (must match token `aud`) |
 | `VITE_AZURE_TENANT_ID` | `client/.env` | same tenant ID |
 | `VITE_AZURE_CLIENT_ID` | `client/.env` | same client ID |
 | `VITE_AZURE_API_SCOPE` | `client/.env` | `api://<client-id>/access_as_user` |
