@@ -4,10 +4,12 @@ import cors from "cors";
 import { PrismaClient } from "@prisma/client";
 import { verifySmtp } from "./mail.js";
 import { parseInventoryCsv } from "./csvImport.js";
+import { createRequireAuth, isAuthDisabled } from "./auth.js";
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
+const requireAuth = createRequireAuth();
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
@@ -17,6 +19,7 @@ app.get("/api/health", async (_req, res) => {
     status: "ok",
     database: "unknown",
     smtp: process.env.SMTP_HOST && process.env.SMTP_USER ? "configured" : "missing",
+    auth: isAuthDisabled() ? "disabled" : "required",
   };
 
   try {
@@ -33,6 +36,22 @@ app.get("/api/health", async (_req, res) => {
   }
 
   res.status(health.status === "ok" ? 200 : 503).json(health);
+});
+
+app.use("/api", requireAuth);
+
+app.get("/api/me", (req, res) => {
+  res.json({
+    sub: req.auth?.payload?.sub ?? req.auth?.sub ?? null,
+    name: req.auth?.payload?.name ?? req.auth?.name ?? null,
+    preferredUsername:
+      req.auth?.payload?.preferred_username ??
+      req.auth?.preferred_username ??
+      req.auth?.payload?.upn ??
+      req.auth?.upn ??
+      null,
+    authDisabled: isAuthDisabled(),
+  });
 });
 
 app.get("/api/items", async (_req, res) => {
@@ -413,9 +432,23 @@ app.post("/api/inventory/import", async (req, res) => {
   }
 });
 
+app.use((err, _req, res, next) => {
+  if (err?.name === "UnauthorizedError" || err?.status === 401) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  if (err?.status === 403) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  return next(err);
+});
+
 app.listen(PORT, async () => {
   console.log(`Server listening on http://localhost:${PORT}`);
-
+  if (isAuthDisabled()) {
+    console.warn("AUTH_DISABLED=true — API authentication is off");
+  } else {
+    console.log("API authentication requires Microsoft Entra ID bearer tokens");
+  }
   try {
     await prisma.$connect();
     console.log("Connected to MySQL");

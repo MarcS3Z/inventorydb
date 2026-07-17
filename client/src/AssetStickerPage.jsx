@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { apiFetch } from "./api.js";
 
 export default function AssetStickerPage({ id, category }) {
   const [item, setItem] = useState(null);
@@ -18,7 +19,7 @@ export default function AssetStickerPage({ id, category }) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/inventory/${id}`);
+        const response = await apiFetch(`/api/inventory/${id}`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.error || "Failed to load inventory item");

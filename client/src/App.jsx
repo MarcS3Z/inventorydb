@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import AdminPage from "./AdminPage.jsx";
 import AssetStickerPage from "./AssetStickerPage.jsx";
+import { useAuthUser } from "./AuthGate.jsx";
+import { authEnabled } from "./authConfig.js";
 import InventoryDetailPage from "./InventoryDetailPage.jsx";
 import ItInventoryPage from "./ItInventoryPage.jsx";
 import OpenTicketPage from "./OpenTicketPage.jsx";
+
+const authDisabled =
+  String(import.meta.env.VITE_AUTH_DISABLED || "").toLowerCase() === "true";
 
 const inventoryLinks = [
   { label: "IT - PTI", category: "IT - PTI" },
@@ -128,6 +133,15 @@ function getPageFromHash() {
   return { name: "home" };
 }
 
+function SignOutButton() {
+  const { name, signOut } = useAuthUser();
+  return (
+    <button type="button" className="secondary" onClick={signOut}>
+      {name ? `Sign out (${name})` : "Sign out"}
+    </button>
+  );
+}
+
 function HomePage() {
   return (
     <div className="app home">
@@ -156,6 +170,7 @@ function HomePage() {
         >
           Administration
         </button>
+        {!authDisabled && authEnabled ? <SignOutButton /> : null}
       </nav>
     </div>
   );

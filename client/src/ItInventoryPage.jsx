@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "./api.js";
 
 function EditIcon() {
   return (
@@ -97,7 +98,7 @@ export default function ItInventoryPage({
 
     async function loadLocations() {
       try {
-        const response = await fetch("/api/locations");
+        const response = await apiFetch("/api/locations");
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.error || "Failed to load locations");
@@ -137,7 +138,7 @@ export default function ItInventoryPage({
           params.set("name", appliedFilters.name.trim());
         }
 
-        const response = await fetch(`/api/inventory?${params}`);
+        const response = await apiFetch(`/api/inventory?${params}`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.error || "Failed to load inventory");

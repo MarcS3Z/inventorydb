@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { apiFetch } from "./api.js";
 
 export default function AdminPage({ onBack }) {
   const fileInputRef = useRef(null);
@@ -26,7 +27,7 @@ export default function AdminPage({ onBack }) {
 
     try {
       const csv = await selectedFile.text();
-      const response = await fetch("/api/inventory/import", {
+      const response = await apiFetch("/api/inventory/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ csv }),

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "./api.js";
 
 const STATUS_OPTIONS = ["In Use", "Available", "Removed"];
 
@@ -94,7 +95,7 @@ export default function InventoryDetailPage({
 
     async function loadLocations() {
       try {
-        const response = await fetch("/api/locations");
+        const response = await apiFetch("/api/locations");
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.error || "Failed to load locations");
@@ -130,7 +131,7 @@ export default function InventoryDetailPage({
       setError(null);
       setEditing(startInEditMode);
       try {
-        const response = await fetch(`/api/inventory/${id}`);
+        const response = await apiFetch(`/api/inventory/${id}`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.error || "Failed to load inventory item");
@@ -191,7 +192,7 @@ export default function InventoryDetailPage({
     setError(null);
     try {
       if (isNew) {
-        const response = await fetch("/api/inventory", {
+        const response = await apiFetch("/api/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...form, category }),
@@ -204,7 +205,7 @@ export default function InventoryDetailPage({
         return;
       }
 
-      const response = await fetch(`/api/inventory/${id}`, {
+      const response = await apiFetch(`/api/inventory/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -240,7 +241,7 @@ export default function InventoryDetailPage({
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`/api/inventory/${id}`, {
+      const response = await apiFetch(`/api/inventory/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -274,7 +275,7 @@ export default function InventoryDetailPage({
     setDeleting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/inventory/${id}`, {
+      const response = await apiFetch(`/api/inventory/${id}`, {
         method: "DELETE",
       });
       if (!response.ok) {
