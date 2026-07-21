@@ -164,6 +164,15 @@ button.secondary:hover:not(:disabled) {
   background: #f0ebe2;
 }
 
+button.scan-button {
+  background: #6d3cc7;
+  color: white;
+}
+
+button.scan-button:hover:not(:disabled) {
+  background: #542c9f;
+}
+
 button.danger {
   background: transparent;
   color: var(--danger);
