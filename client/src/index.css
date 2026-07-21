@@ -327,6 +327,23 @@ th {
   text-align: right;
 }
 
+.asset-id-button {
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.asset-id-button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--accent-hover);
+}
+
 .icon-button {
   display: inline-flex;
   align-items: center;

@@ -499,7 +499,7 @@ export default function InventoryDetailPage({
               ) : (
                 <>
                   <button type="button" onClick={startEditing} disabled={deleting}>
-                    Update
+                    Edit
                   </button>
                   <button
                     type="button"

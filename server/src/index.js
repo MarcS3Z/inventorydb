@@ -354,6 +354,70 @@ app.get("/api/locations", async (_req, res) => {
   }
 });
 
+app.get("/api/inventory/export", async (req, res) => {
+  try {
+    const categoryId = Number(req.query.categoryId);
+    if (!Number.isInteger(categoryId) || categoryId < 1) {
+      return res.status(400).json({ error: "A valid categoryId is required" });
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { category: true },
+    });
+    if (!category) {
+      return res.status(404).json({ error: "Category not found" });
+    }
+
+    const items = await prisma.inventory.findMany({
+      where: { category: category.category },
+      orderBy: { assetId: "asc" },
+    });
+
+    const escapeCsv = (value) => {
+      if (value == null) return "";
+      const text =
+        value instanceof Date
+          ? value.toISOString().slice(0, 10)
+          : String(value);
+      return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const columns = [
+      ["ID", "assetId"],
+      ["Category", "category"],
+      ["Manufacturer", "manufacturer"],
+      ["Type", "type"],
+      ["Issued", "issued"],
+      ["Location", "location"],
+      ["Last Name", "lastName"],
+      ["First Name", "firstName"],
+      ["Notes", "notes"],
+      ["Status", "status"],
+      ["Last Check In", "lastCheckIn"],
+    ];
+    const csv = [
+      columns.map(([header]) => escapeCsv(header)).join(","),
+      ...items.map((item) =>
+        columns.map(([, field]) => escapeCsv(item[field])).join(",")
+      ),
+    ].join("\r\n");
+    const filename = `${category.category
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "inventory"}-inventory.csv`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}"`
+    );
+    res.send(`\uFEFF${csv}`);
+  } catch (error) {
+    console.error("Failed to export inventory CSV:", error);
+    res.status(500).json({ error: "Failed to export inventory CSV" });
+  }
+});
+
 app.get("/api/inventory/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -527,6 +591,19 @@ app.post("/api/inventory/import", async (req, res) => {
       return res.status(400).json({ error: "Request body must include a csv string" });
     }
 
+    const categoryId = Number(req.body?.categoryId);
+    if (!Number.isInteger(categoryId) || categoryId < 1) {
+      return res.status(400).json({ error: "A valid categoryId is required" });
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { id: true, category: true },
+    });
+    if (!category) {
+      return res.status(404).json({ error: "Category not found" });
+    }
+
     let parsed;
     try {
       parsed = parseInventoryCsv(csv);
@@ -540,6 +617,7 @@ app.post("/api/inventory/import", async (req, res) => {
 
     for (const row of parsed.rows) {
       const { line, ...data } = row;
+      data.category = category.category;
       try {
         const existing = await prisma.inventory.findUnique({
           where: { assetId: data.assetId },
@@ -570,6 +648,7 @@ app.post("/api/inventory/import", async (req, res) => {
       updated,
       skipped: rowErrors.length,
       errors: rowErrors.slice(0, 50),
+      category,
     });
   } catch (error) {
     console.error("Failed to import inventory CSV:", error);
