@@ -48,7 +48,9 @@ export default function AssetStickerPage({ id, categoryId }) {
     <div className="app sticker-page">
       <header className="header sticker-header no-print">
         <h1>Asset Sticker</h1>
-        <p>Scan the QR code to open this asset record.</p>
+        <p>
+          Sized for a Brother QL-810W using a DK-1201 1.1 × 3.5-inch label.
+        </p>
         <div className="actions">
           <button type="button" onClick={() => window.print()}>
             Print
@@ -83,9 +85,8 @@ export default function AssetStickerPage({ id, categoryId }) {
             {item.type ? <div className="sticker-type">{item.type}</div> : null}
           </div>
           <div className="sticker-qr">
-            <QRCodeSVG value={assetUrl} size={160} level="M" includeMargin />
+            <QRCodeSVG value={assetUrl} size={160} level="M" />
           </div>
-          <p className="muted sticker-url no-print">{assetUrl}</p>
         </section>
       ) : null}
     </div>
