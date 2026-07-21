@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import AdminPage from "./AdminPage.jsx";
 import { apiFetch } from "./api.js";
 import AssetStickerPage from "./AssetStickerPage.jsx";
@@ -8,6 +8,8 @@ import InventoryDetailPage from "./InventoryDetailPage.jsx";
 import ItInventoryPage from "./ItInventoryPage.jsx";
 import OpenTicketPage from "./OpenTicketPage.jsx";
 
+const ScanPage = lazy(() => import("./ScanPage.jsx"));
+
 const authDisabled =
   String(import.meta.env.VITE_AUTH_DISABLED || "").toLowerCase() === "true";
 
@@ -15,7 +17,9 @@ function parseInventoryHash(hash) {
   const match = hash.match(/^#\/inventory\/(.+)$/);
   if (!match) return null;
 
-  const parts = match[1].split("/").map((part) => decodeURIComponent(part));
+  const [route, query = ""] = match[1].split("?", 2);
+  const fromScan = new URLSearchParams(query).get("from") === "scan";
+  const parts = route.split("/").map((part) => decodeURIComponent(part));
   if (!/^\d+$/.test(parts[0])) return null;
 
   const categoryId = Number(parts[0]);
@@ -34,6 +38,7 @@ function parseInventoryHash(hash) {
       categoryId,
       id: Number(parts[1]),
       startInEditMode: false,
+      fromScan,
     };
   }
 
@@ -69,6 +74,7 @@ function getPageFromHash() {
   const hash = window.location.hash;
 
   if (hash === "#/admin") return { name: "admin" };
+  if (hash === "#/scan") return { name: "scan" };
 
   const inventoryPage = parseInventoryHash(hash);
   if (inventoryPage) return inventoryPage;
@@ -196,6 +202,17 @@ function HomePage() {
               </button>
             ))
           : null}
+        {canAccessInventory ? (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              window.location.hash = "#/scan";
+            }}
+          >
+            Scan
+          </button>
+        ) : null}
         {isAdmin ? (
           <button
             type="button"
@@ -310,6 +327,20 @@ export default function App() {
     return <AdminPage onBack={goHome} />;
   }
 
+  if (page.name === "scan") {
+    return (
+      <Suspense
+        fallback={
+          <div className="app">
+            <p className="muted">Loading scanner…</p>
+          </div>
+        }
+      >
+        <ScanPage onBack={goHome} />
+      </Suspense>
+    );
+  }
+
   if (page.name === "asset-sticker") {
     return (
       <CategoryRoute categoryId={page.categoryId}>
@@ -367,9 +398,12 @@ export default function App() {
             categoryId={category.id}
             category={category.category}
             listTitle={category.category}
+            backLabel={page.fromScan ? "Scan" : category.category}
             startInEditMode={page.startInEditMode}
             onBack={() => {
-              window.location.hash = inventoryPath(category.id);
+              window.location.hash = page.fromScan
+                ? "#/scan"
+                : inventoryPath(category.id);
             }}
           />
         )}

@@ -77,6 +77,7 @@ export default function InventoryDetailPage({
   category,
   isNew = false,
   listTitle = "Inventory",
+  backLabel = listTitle,
   startInEditMode = false,
   onBack,
   onCreated,
@@ -357,7 +358,7 @@ export default function InventoryDetailPage({
       <header className="header">
         {canManage ? (
           <button type="button" className="secondary back-button" onClick={onBack}>
-            ← {listTitle}
+            ← {backLabel}
           </button>
         ) : null}
         <h1>{isNew ? "New Inventory Record" : "Inventory Record"}</h1>

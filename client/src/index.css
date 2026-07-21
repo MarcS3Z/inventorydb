@@ -441,6 +441,31 @@ th {
   color: var(--danger);
 }
 
+.scan-panel {
+  width: min(100%, 34rem);
+  margin-inline: auto;
+  text-align: center;
+}
+
+.qr-reader {
+  width: 100%;
+  min-height: 16rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #111;
+}
+
+.qr-reader:empty {
+  display: grid;
+  place-items: center;
+}
+
+.scan-panel .actions {
+  justify-content: center;
+  margin-top: 1rem;
+}
+
 .sticker-page {
   display: flex;
   flex-direction: column;
