@@ -90,6 +90,52 @@ export default function InventoryDetailPage({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [locations, setLocations] = useState([]);
   const [error, setError] = useState(null);
+  const [canManage, setCanManage] = useState(false);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPermissions() {
+      try {
+        const response = await apiFetch("/api/me");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load user permissions");
+        }
+
+        const roles = new Set(
+          (Array.isArray(data.roles) ? data.roles : []).map((role) =>
+            String(role).toLowerCase()
+          )
+        );
+        const allowed =
+          data.authDisabled ||
+          roles.has("inventory.admin") ||
+          roles.has("inventory.editor") ||
+          roles.has("inventorydb.admin") ||
+          roles.has("inventorydb.editor");
+
+        if (!cancelled) {
+          setCanManage(Boolean(allowed));
+        }
+      } catch (err) {
+        console.error("Failed to load user permissions:", err);
+        if (!cancelled) {
+          setCanManage(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setPermissionsLoading(false);
+        }
+      }
+    }
+
+    loadPermissions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -291,12 +337,29 @@ export default function InventoryDetailPage({
     }
   }
 
+  const isEditing = editing && canManage;
+
+  if (isNew && !permissionsLoading && !canManage) {
+    return (
+      <div className="app">
+        <header className="header">
+          <h1>New Inventory Record</h1>
+        </header>
+        <div className="banner error">
+          You do not have permission to create inventory records.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <header className="header">
-        <button type="button" className="secondary back-button" onClick={onBack}>
-          ← {listTitle}
-        </button>
+        {canManage ? (
+          <button type="button" className="secondary back-button" onClick={onBack}>
+            ← {listTitle}
+          </button>
+        ) : null}
         <h1>{isNew ? "New Inventory Record" : "Inventory Record"}</h1>
         <p>
           {isNew
@@ -310,14 +373,14 @@ export default function InventoryDetailPage({
       {error && <div className="banner error">{error}</div>}
 
       <section className="panel">
-        {loading || !form ? (
+        {loading || !form || permissionsLoading ? (
           <p className="muted">Loading record…</p>
         ) : item || isNew ? (
           <>
             <div className="record-layout">
               <div className="record-row">
                 <Field label="Asset ID">
-                  {editing ? (
+                  {isEditing ? (
                     <input
                       value={form.assetId}
                       onChange={(e) => updateField("assetId", e.target.value)}
@@ -330,7 +393,7 @@ export default function InventoryDetailPage({
 
               <div className="record-row record-row-2">
                 <Field label="Manufacturer">
-                  {editing ? (
+                  {isEditing ? (
                     <input
                       value={form.manufacturer}
                       onChange={(e) => updateField("manufacturer", e.target.value)}
@@ -340,7 +403,7 @@ export default function InventoryDetailPage({
                   )}
                 </Field>
                 <Field label="Type">
-                  {editing ? (
+                  {isEditing ? (
                     <input
                       value={form.type}
                       onChange={(e) => updateField("type", e.target.value)}
@@ -353,7 +416,7 @@ export default function InventoryDetailPage({
 
               <div className="record-row">
                 <Field label="Status">
-                  {editing ? (
+                  {isEditing ? (
                     <select
                       value={form.status}
                       onChange={(e) => updateField("status", e.target.value)}
@@ -373,7 +436,7 @@ export default function InventoryDetailPage({
 
               <div className="record-row record-row-2">
                 <Field label="Issued">
-                  {editing ? (
+                  {isEditing ? (
                     <input
                       type="date"
                       value={form.issued}
@@ -384,7 +447,7 @@ export default function InventoryDetailPage({
                   )}
                 </Field>
                 <Field label="Last Check In">
-                  {editing ? (
+                  {isEditing ? (
                     <input
                       type="date"
                       value={form.lastCheckIn}
@@ -398,7 +461,7 @@ export default function InventoryDetailPage({
 
               <div className="record-row record-row-2">
                 <Field label="Location">
-                  {editing ? (
+                  {isEditing ? (
                     <select
                       value={form.location}
                       onChange={(e) => updateField("location", e.target.value)}
@@ -414,7 +477,7 @@ export default function InventoryDetailPage({
                     <ReadValue value={item.location} />
                   )}
                 </Field>
-                {editing ? (
+                {isEditing ? (
                   <div className="issued-to-edit">
                     <span className="record-label">Issued To</span>
                     <div className="issued-to-fields">
@@ -443,7 +506,7 @@ export default function InventoryDetailPage({
 
               <div className="record-row">
                 <Field label="Notes">
-                  {editing ? (
+                  {isEditing ? (
                     <textarea
                       rows={4}
                       value={form.notes}
@@ -457,7 +520,16 @@ export default function InventoryDetailPage({
             </div>
 
             <div className="actions record-actions">
-              {editing ? (
+              {!canManage ? (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={openTicket}
+                  disabled={deleting}
+                >
+                  Open Ticket
+                </button>
+              ) : isEditing ? (
                 <>
                   <button type="button" onClick={saveChanges} disabled={saving}>
                     {saving ? "Saving…" : "Save"}

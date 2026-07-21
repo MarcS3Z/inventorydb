@@ -158,6 +158,19 @@ function HomePage() {
   const displayName = me?.name || me?.preferredUsername || "(unknown)";
   const roles =
     me?.roles?.length > 0 ? me.roles.join(", ") : "(none in token)";
+  const roleSet = new Set(
+    (Array.isArray(me?.roles) ? me.roles : []).map((role) =>
+      String(role).toLowerCase()
+    )
+  );
+  const isAdmin =
+    me?.authDisabled ||
+    roleSet.has("inventory.admin") ||
+    roleSet.has("inventorydb.admin");
+  const isEditor =
+    roleSet.has("inventory.editor") ||
+    roleSet.has("inventorydb.editor");
+  const canAccessInventory = isAdmin || isEditor;
 
   return (
     <div className="app home">
@@ -170,26 +183,30 @@ function HomePage() {
       )}
 
       <nav className="home-nav" aria-label="Inventory sections">
-        {categories.map((row) => (
+        {canAccessInventory
+          ? categories.map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => {
+                  window.location.hash = `#/inventory/${row.id}`;
+                }}
+              >
+                {row.category}
+              </button>
+            ))
+          : null}
+        {isAdmin ? (
           <button
-            key={row.id}
             type="button"
+            className="secondary"
             onClick={() => {
-              window.location.hash = `#/inventory/${row.id}`;
+              window.location.hash = "#/admin";
             }}
           >
-            {row.category}
+            Administration
           </button>
-        ))}
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => {
-            window.location.hash = "#/admin";
-          }}
-        >
-          Administration
-        </button>
+        ) : null}
         {!authDisabled && authEnabled ? <SignOutButton /> : null}
       </nav>
 
