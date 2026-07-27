@@ -495,11 +495,11 @@ th {
 
 .sticker-card {
   display: grid;
-  grid-template-columns: 0.8in 1fr 0.85in;
+  grid-template-columns: 0.75in 1fr 0.95in;
   align-items: center;
-  gap: 0.08in;
-  width: 3.5in;
-  height: 1.1in;
+  gap: 0.06in;
+  width: 3in;
+  height: 1.25in;
   padding: 0.08in;
   overflow: hidden;
   text-align: left;
@@ -515,8 +515,8 @@ th {
 .sticker-logo img {
   display: block;
   width: 100%;
-  max-width: 0.78in;
-  max-height: 0.9in;
+  max-width: 0.72in;
+  max-height: 1.05in;
   height: auto;
   object-fit: contain;
 }
@@ -564,8 +564,8 @@ th {
 
 .sticker-qr svg {
   display: block;
-  width: 0.82in;
-  height: 0.82in;
+  width: 0.95in;
+  height: 0.95in;
 }
 
 .sticker-url {
@@ -585,7 +585,7 @@ th {
 
 @media print {
   @page {
-    size: 3.5in 1.1in;
+    size: 3in 1.25in;
     margin: 0;
   }
 
@@ -601,8 +601,10 @@ th {
   }
 
   .sticker-card {
-    width: 3.5in;
-    height: 1.1in;
+    display: grid;
+    grid-template-columns: 0.75in 1fr 0.95in;
+    width: 3in;
+    height: 1.25in;
     max-width: none;
     border: 0;
     border-radius: 0;
@@ -610,10 +612,11 @@ th {
     margin: 0;
     padding: 0.08in;
     break-inside: avoid;
+    text-align: left;
   }
 
   .sticker-logo img {
-    max-width: 0.78in;
+    max-width: 0.72in;
   }
 }
 
