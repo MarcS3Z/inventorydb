@@ -49,8 +49,7 @@ export default function AssetStickerPage({ id, categoryId }) {
       <header className="header sticker-header no-print">
         <h1>Asset Sticker</h1>
         <p>
-          Sized for an iDPRT SP310 using a 1.25 × 3.0-inch label
-          (1.25″ wide × 3.0″ high).
+          Sized for an iDPRT SP310 using a 1.25 × 3.0-inch label.
         </p>
         <div className="actions">
           <button type="button" onClick={() => window.print()}>
@@ -74,21 +73,19 @@ export default function AssetStickerPage({ id, categoryId }) {
         <p className="muted">Loading sticker…</p>
       ) : item ? (
         <section className="sticker-card panel" aria-label="Asset sticker">
-          <div className="sticker-content">
-            <div className="sticker-logo">
-              <img
-                src="/lhm-pti-logo.png"
-                alt="LHM Physical Therapy Institute"
-              />
-            </div>
-            <div className="sticker-meta">
-              <div className="sticker-label">Asset ID</div>
-              <div className="sticker-asset-id">{item.assetId}</div>
-              {item.type ? <div className="sticker-type">{item.type}</div> : null}
-            </div>
-            <div className="sticker-qr">
-              <QRCodeSVG value={assetUrl} size={160} level="M" />
-            </div>
+          <div className="sticker-logo">
+            <img
+              src="/lhm-pti-logo.png"
+              alt="LHM Physical Therapy Institute"
+            />
+          </div>
+          <div className="sticker-meta">
+            <div className="sticker-label">Asset ID</div>
+            <div className="sticker-asset-id">{item.assetId}</div>
+            {item.type ? <div className="sticker-type">{item.type}</div> : null}
+          </div>
+          <div className="sticker-qr">
+            <QRCodeSVG value={assetUrl} size={160} level="M" />
           </div>
         </section>
       ) : null}
