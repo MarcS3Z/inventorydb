@@ -57,9 +57,14 @@ export default function OpenTicketPage({ id, categoryId }) {
     setError(null);
     setSuccess(false);
     try {
+      const assetUrl = `${window.location.origin}${window.location.pathname}#/inventory/${categoryId}/${id}`;
       const response = await apiFetch(`/api/inventory/${id}/ticket`, {
         method: "POST",
-        body: JSON.stringify({ description: trimmed }),
+        body: JSON.stringify({
+          description: trimmed,
+          assetUrl,
+          categoryId: Number(categoryId),
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {

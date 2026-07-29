@@ -1,12 +1,14 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import AdminPage from "./AdminPage.jsx";
 import { apiFetch } from "./api.js";
+import AssetLogPage from "./AssetLogPage.jsx";
 import AssetStickerPage from "./AssetStickerPage.jsx";
 import { useAuthUser } from "./AuthGate.jsx";
 import { authEnabled } from "./authConfig.js";
 import InventoryDetailPage from "./InventoryDetailPage.jsx";
 import ItInventoryPage from "./ItInventoryPage.jsx";
 import OpenTicketPage from "./OpenTicketPage.jsx";
+import ReportsPage from "./ReportsPage.jsx";
 
 const ScanPage = lazy(() => import("./ScanPage.jsx"));
 
@@ -67,6 +69,14 @@ function parseInventoryHash(hash) {
     };
   }
 
+  if (parts.length === 3 && /^\d+$/.test(parts[1]) && parts[2] === "log") {
+    return {
+      name: "asset-log",
+      categoryId,
+      id: Number(parts[1]),
+    };
+  }
+
   return null;
 }
 
@@ -74,6 +84,7 @@ function getPageFromHash() {
   const hash = window.location.hash;
 
   if (hash === "#/admin") return { name: "admin" };
+  if (hash === "#/reports") return { name: "reports" };
   if (hash === "#/scan") return { name: "scan" };
 
   const inventoryPage = parseInventoryHash(hash);
@@ -205,6 +216,17 @@ function HomePage() {
         {canAccessInventory ? (
           <button
             type="button"
+            className="secondary"
+            onClick={() => {
+              window.location.hash = "#/reports";
+            }}
+          >
+            Reports
+          </button>
+        ) : null}
+        {canAccessInventory ? (
+          <button
+            type="button"
             className="scan-button"
             onClick={() => {
               window.location.hash = "#/scan";
@@ -327,6 +349,10 @@ export default function App() {
     return <AdminPage onBack={goHome} />;
   }
 
+  if (page.name === "reports") {
+    return <ReportsPage onBack={goHome} />;
+  }
+
   if (page.name === "scan") {
     return (
       <Suspense
@@ -359,6 +385,19 @@ export default function App() {
       <CategoryRoute categoryId={page.categoryId}>
         {(category) => (
           <OpenTicketPage
+            id={page.id}
+            categoryId={category.id}
+          />
+        )}
+      </CategoryRoute>
+    );
+  }
+
+  if (page.name === "asset-log") {
+    return (
+      <CategoryRoute categoryId={page.categoryId}>
+        {(category) => (
+          <AssetLogPage
             id={page.id}
             categoryId={category.id}
           />

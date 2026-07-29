@@ -284,6 +284,7 @@ export default function InventoryDetailPage({
     const payload = {
       ...itemToForm(item),
       lastCheckIn: today,
+      checkIn: true,
     };
 
     setSaving(true);
@@ -315,6 +316,10 @@ export default function InventoryDetailPage({
   function openTicket() {
     const url = `${window.location.origin}${window.location.pathname}#/inventory/${categoryId}/${id}/ticket`;
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function openLog() {
+    window.location.hash = `#/inventory/${categoryId}/${id}/log`;
   }
 
   async function deleteRecord() {
@@ -589,6 +594,14 @@ export default function InventoryDetailPage({
                     disabled={saving || deleting}
                   >
                     {saving ? "Saving…" : "Check In"}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={openLog}
+                    disabled={deleting}
+                  >
+                    View Log
                   </button>
                   <button
                     type="button"

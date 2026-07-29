@@ -5,6 +5,7 @@ import { PrismaClient } from "@prisma/client";
 import { verifySmtp, sendMail } from "./mail.js";
 import { parseInventoryCsv } from "./csvImport.js";
 import { createRequireAuth, isAuthDisabled } from "./auth.js";
+import { getRequestUserName, writeInventoryLog } from "./inventoryLog.js";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -327,6 +328,17 @@ app.post("/api/inventory", async (req, res) => {
         notes: emptyToNull(notes),
       },
     });
+
+    try {
+      await writeInventoryLog(prisma, {
+        userName: getRequestUserName(req),
+        assetId: item.assetId,
+        message: "Asset added",
+      });
+    } catch (logError) {
+      console.error("Failed to write inventory log:", logError);
+    }
+
     res.status(201).json(item);
   } catch (error) {
     console.error("Failed to create inventory item:", error);
@@ -436,6 +448,36 @@ app.get("/api/inventory/:id", async (req, res) => {
   }
 });
 
+app.get("/api/inventory/:id/log", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid inventory id" });
+    }
+
+    const item = await prisma.inventory.findUnique({
+      where: { id },
+      select: { id: true, assetId: true },
+    });
+    if (!item) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+
+    const entries = await prisma.log.findMany({
+      where: { assetId: item.assetId },
+      orderBy: { date: "desc" },
+    });
+
+    res.json({
+      assetId: item.assetId,
+      entries,
+    });
+  } catch (error) {
+    console.error("Failed to fetch inventory log:", error);
+    res.status(500).json({ error: "Failed to fetch inventory log" });
+  }
+});
+
 app.post("/api/inventory/:id/ticket", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -451,6 +493,9 @@ app.post("/api/inventory/:id/ticket", async (req, res) => {
       return res.status(400).json({ error: "Description is required" });
     }
 
+    const assetUrl =
+      typeof req.body?.assetUrl === "string" ? req.body.assetUrl.trim() : "";
+
     const item = await prisma.inventory.findUnique({ where: { id } });
     if (!item) {
       return res.status(404).json({ error: "Inventory item not found" });
@@ -459,17 +504,29 @@ app.post("/api/inventory/:id/ticket", async (req, res) => {
     const assetId = item.assetId || String(item.id);
     const assetType = item.type || "Unknown";
 
-    const categoryRow = item.category
-      ? await prisma.category.findUnique({ where: { category: item.category } })
-      : null;
-    const to =
-      categoryRow?.ticketEmail ||
-      process.env.TICKET_EMAIL ||
-      "lhmpticomhelpdesk@lhmphysicaltherapy.freshservice.com";
+    const categoryIdRaw = req.body?.categoryId;
+    const categoryId =
+      categoryIdRaw != null && categoryIdRaw !== ""
+        ? Number(categoryIdRaw)
+        : null;
 
+    let categoryRow = null;
+    if (Number.isInteger(categoryId) && categoryId > 0) {
+      categoryRow = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+    }
+    if (!categoryRow && item.category) {
+      categoryRow = await prisma.category.findUnique({
+        where: { category: item.category },
+      });
+    }
+
+    const to = categoryRow?.ticketEmail?.trim() || null;
     if (!to) {
-      return res.status(500).json({
-        error: "No ticket email configured for this category",
+      return res.status(400).json({
+        error:
+          "No ticket email is configured for this inventory category in the categories table.",
       });
     }
 
@@ -487,12 +544,26 @@ app.post("/api/inventory/:id/ticket", async (req, res) => {
         : userEmail
       : process.env.SMTP_FROM;
 
+    const emailBody = assetUrl
+      ? `${description}\n\nAsset: ${assetUrl}`
+      : description;
+
     await sendMail({
       to,
       from: fromAddress,
       subject: `ASSET ISSUE: ${assetId} - ${assetType}`,
-      text: description,
+      text: emailBody,
     });
+
+    try {
+      await writeInventoryLog(prisma, {
+        userName: getRequestUserName(req),
+        assetId,
+        message: "Ticket opened",
+      });
+    } catch (logError) {
+      console.error("Failed to write inventory log:", logError);
+    }
 
     res.json({ ok: true });
   } catch (error) {
@@ -538,6 +609,17 @@ app.put("/api/inventory/:id", async (req, res) => {
       return Number.isNaN(date.getTime()) ? null : date;
     };
 
+    const existing = await prisma.inventory.findUnique({
+      where: { id },
+      select: { lastCheckIn: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+
+    const isCheckIn = req.body?.checkIn === true;
+    const nextLastCheckIn = parseDate(lastCheckIn);
+
     const item = await prisma.inventory.update({
       where: { id },
       data: {
@@ -546,13 +628,26 @@ app.put("/api/inventory/:id", async (req, res) => {
         type: emptyToNull(type),
         status: emptyToNull(status),
         issued: parseDate(issued),
-        lastCheckIn: parseDate(lastCheckIn),
+        lastCheckIn: nextLastCheckIn,
         location: emptyToNull(location),
         lastName: emptyToNull(lastName),
         firstName: emptyToNull(firstName),
         notes: emptyToNull(notes),
       },
     });
+
+    if (isCheckIn) {
+      try {
+        await writeInventoryLog(prisma, {
+          userName: getRequestUserName(req),
+          assetId: item.assetId,
+          message: "Asset checked in",
+        });
+      } catch (logError) {
+        console.error("Failed to write inventory log:", logError);
+      }
+    }
+
     res.json(item);
   } catch (error) {
     console.error("Failed to update inventory item:", error);
@@ -614,6 +709,7 @@ app.post("/api/inventory/import", async (req, res) => {
     let created = 0;
     let updated = 0;
     const rowErrors = [...parsed.errors];
+    const userName = getRequestUserName(req);
 
     for (const row of parsed.rows) {
       const { line, ...data } = row;
@@ -633,6 +729,18 @@ app.post("/api/inventory/import", async (req, res) => {
         } else {
           await prisma.inventory.create({ data });
           created += 1;
+          try {
+            await writeInventoryLog(prisma, {
+              userName,
+              assetId: data.assetId,
+              message: "Asset added",
+            });
+          } catch (logError) {
+            console.error(
+              `Failed to write inventory log for ${data.assetId}:`,
+              logError
+            );
+          }
         }
       } catch (error) {
         console.error(`Failed to import row ${line}:`, error);
