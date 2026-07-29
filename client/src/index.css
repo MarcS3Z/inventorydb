@@ -602,12 +602,12 @@ th {
 
 .sticker-card {
   display: grid;
-  grid-template-columns: 0.75in 1fr 0.95in;
+  grid-template-columns: 18mm 1fr 24mm;
   align-items: center;
-  gap: 0.06in;
-  width: 3in;
-  height: 1.25in;
-  padding: 0.08in;
+  gap: 1.5mm;
+  width: 90mm;
+  height: 30mm;
+  padding: 2mm;
   overflow: hidden;
   text-align: left;
   color: #1c1a16;
@@ -625,8 +625,8 @@ th {
 .sticker-logo img {
   display: block;
   width: 100%;
-  max-width: 0.72in;
-  max-height: 1.05in;
+  max-width: 17mm;
+  max-height: 24mm;
   height: auto;
   object-fit: contain;
 }
@@ -636,7 +636,7 @@ th {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.03in;
+  gap: 0.8mm;
   text-align: center;
   min-width: 0;
 }
@@ -674,8 +674,8 @@ th {
 
 .sticker-qr svg {
   display: block;
-  width: 0.95in;
-  height: 0.95in;
+  width: 24mm;
+  height: 24mm;
 }
 
 .sticker-url {
@@ -695,7 +695,7 @@ th {
 
 @media print {
   @page {
-    size: 3in 1.25in;
+    size: 90mm 30mm;
     margin: 0;
   }
 
@@ -718,15 +718,15 @@ th {
 
   .sticker-card {
     display: grid;
-    grid-template-columns: 0.75in 1fr 0.95in;
-    width: 3in;
-    height: 1.25in;
+    grid-template-columns: 18mm 1fr 24mm;
+    width: 90mm;
+    height: 30mm;
     max-width: none;
     border: 0;
     border-radius: 0;
     box-shadow: none;
     margin: 0;
-    padding: 0.08in;
+    padding: 2mm;
     break-inside: avoid;
     text-align: left;
     color: #000;
@@ -734,7 +734,7 @@ th {
   }
 
   .sticker-logo img {
-    max-width: 0.72in;
+    max-width: 17mm;
   }
 }
 

@@ -49,7 +49,7 @@ export default function AssetStickerPage({ id, categoryId }) {
       <header className="header sticker-header no-print">
         <h1>Asset Sticker</h1>
         <p>
-          Sized for an iDPRT SP310 using a 1.25 × 3.0-inch label.
+          Sized for an iDPRT SP310 using a 30 × 90 mm label.
         </p>
         <div className="actions">
           <button type="button" onClick={() => window.print()}>
