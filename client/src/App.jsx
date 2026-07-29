@@ -216,7 +216,7 @@ function HomePage() {
         {canAccessInventory ? (
           <button
             type="button"
-            className="secondary"
+            className="scan-button"
             onClick={() => {
               window.location.hash = "#/reports";
             }}

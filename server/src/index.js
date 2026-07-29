@@ -368,22 +368,53 @@ app.get("/api/locations", async (_req, res) => {
 
 app.get("/api/inventory/export", async (req, res) => {
   try {
-    const categoryId = Number(req.query.categoryId);
-    if (!Number.isInteger(categoryId) || categoryId < 1) {
-      return res.status(400).json({ error: "A valid categoryId is required" });
+    const categoryIdRaw =
+      typeof req.query.categoryId === "string"
+        ? req.query.categoryId.trim()
+        : "";
+    const status =
+      typeof req.query.status === "string" ? req.query.status.trim() : "";
+    const location =
+      typeof req.query.location === "string" ? req.query.location.trim() : "";
+    const aging =
+      typeof req.query.aging === "string" ? req.query.aging.trim() : "";
+
+    const where = {};
+    let categoryLabel = "all-categories";
+
+    if (categoryIdRaw) {
+      const categoryId = Number(categoryIdRaw);
+      if (!Number.isInteger(categoryId) || categoryId < 1) {
+        return res.status(400).json({ error: "Invalid categoryId" });
+      }
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { category: true },
+      });
+      if (!category) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      where.category = category.category;
+      categoryLabel = category.category;
     }
 
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
-      select: { category: true },
-    });
-    if (!category) {
-      return res.status(404).json({ error: "Category not found" });
+    if (status) where.status = status;
+    if (location) where.location = location;
+
+    if (aging === "gt6m" || aging === "gt1y") {
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - (aging === "gt1y" ? 12 : 6));
+      where.OR = [
+        { lastCheckIn: null },
+        { lastCheckIn: { lt: cutoff } },
+      ];
+    } else if (aging) {
+      return res.status(400).json({ error: "Invalid aging filter" });
     }
 
     const items = await prisma.inventory.findMany({
-      where: { category: category.category },
-      orderBy: { assetId: "asc" },
+      where: Object.keys(where).length > 0 ? where : undefined,
+      orderBy: [{ category: "asc" }, { assetId: "asc" }],
     });
 
     const escapeCsv = (value) => {
@@ -413,10 +444,24 @@ app.get("/api/inventory/export", async (req, res) => {
         columns.map(([, field]) => escapeCsv(item[field])).join(",")
       ),
     ].join("\r\n");
-    const filename = `${category.category
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "inventory"}-inventory.csv`;
+
+    const slug = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "all";
+    const filenameParts = [
+      slug(categoryLabel),
+      status ? slug(status) : null,
+      location ? slug(location) : null,
+      aging === "gt6m"
+        ? "aging-over-6-months"
+        : aging === "gt1y"
+          ? "aging-over-1-year"
+          : null,
+      "inventory",
+    ].filter(Boolean);
+    const filename = `${filenameParts.join("-")}.csv`;
 
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader(

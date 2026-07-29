@@ -23,15 +23,19 @@ function LoginScreen() {
   }
 
   return (
-    <div className="app home">
-      <header className="header">
+    <div className="app signin">
+      <header className="signin-header">
+        <img
+          className="signin-logo"
+          src="/lhm-pti-logo-color.png"
+          alt="LHM Physical Therapy Institute"
+        />
         <h1>InventoryDB</h1>
-        <p>Sign in with your Microsoft work account to continue.</p>
       </header>
       {error && <div className="banner error">{error}</div>}
       <nav className="home-nav" aria-label="Sign in">
         <button type="button" onClick={signIn} disabled={busy}>
-          {busy ? "Signing in…" : "Sign in with Microsoft"}
+          {busy ? "Signing in…" : "Sign in with your LHM Account"}
         </button>
       </nav>
     </div>
